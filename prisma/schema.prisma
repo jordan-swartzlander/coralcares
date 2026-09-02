@@ -79,8 +79,9 @@ model Teacher {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
-  students     Volunteer[]
+  students      Volunteer[]
   opportunities Opportunity[]
+  slots         Slot[]
 
   @@map("teachers")
 }
@@ -195,16 +196,25 @@ model Opportunity {
   @@map("opportunities")
 }
 
+// audienceOverride is null when the slot just inherits its parent
+// Opportunity's audience. Set it (and the matching audienceGrade /
+// audienceTeacherId) to target this specific slot differently — e.g. a
+// school-wide "Fall Festival" opportunity where the 9am slot is
+// Kindergarten-only and the 10am slot is Grade 1-only.
 model Slot {
-  id            Int         @id @default(autoincrement())
-  opportunityId Int         @map("opportunity_id")
-  date          DateTime    @db.Date
-  startTime     DateTime    @map("start_time") @db.Time()
-  endTime       DateTime    @map("end_time") @db.Time()
-  capacity      Int
+  id                Int                  @id @default(autoincrement())
+  opportunityId     Int                  @map("opportunity_id")
+  date              DateTime             @db.Date
+  startTime         DateTime             @map("start_time") @db.Time()
+  endTime           DateTime             @map("end_time") @db.Time()
+  capacity          Int
+  audienceOverride  OpportunityAudience? @map("audience_override")
+  audienceGrade     String?              @map("audience_grade")
+  audienceTeacherId Int?                 @map("audience_teacher_id")
 
-  opportunity   Opportunity  @relation(fields: [opportunityId], references: [id])
-  commitments   Commitment[]
+  opportunity     Opportunity  @relation(fields: [opportunityId], references: [id])
+  audienceTeacher Teacher?     @relation(fields: [audienceTeacherId], references: [id])
+  commitments     Commitment[]
 
   @@map("slots")
 }

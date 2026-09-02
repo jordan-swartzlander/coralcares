@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSchoolYear, getClearanceLevel } from "@/lib/school-year";
 import { signUpForSlot, cancelCommitment, updateStudentTeacher } from "./actions";
 import { SignOutButton } from "./sign-out-button";
-import { formatSlotDate, formatSlotTime } from "@/lib/format";
+import { formatSlotDate, formatSlotTime, gradeLabel } from "@/lib/format";
 
 export default async function VolunteerPage() {
   const session = await getServerSession(authOptions);
@@ -142,7 +142,10 @@ async function ApprovedVolunteerView({
       include: {
         slots: {
           orderBy: { date: "asc" },
-          include: { commitments: { where: { status: "CONFIRMED" } } },
+          include: {
+            commitments: { where: { status: "CONFIRMED" } },
+            audienceTeacher: true,
+          },
         },
         audienceTeacher: true,
       },
@@ -154,24 +157,47 @@ async function ApprovedVolunteerView({
     }),
   ]);
 
-  function isVisible(opportunity: (typeof opportunities)[number]) {
-    if (opportunity.audience === "SCHOOL") return true;
-    if (opportunity.audience === "GRADE") return opportunity.audienceGrade === studentGrade;
-    if (opportunity.audience === "CLASSROOM") {
-      return opportunity.audienceTeacherId === studentTeacherId;
+  type OpportunityWithSlots = (typeof opportunities)[number];
+  type SlotWithAudience = OpportunityWithSlots["slots"][number];
+
+  function effectiveAudience(opportunity: OpportunityWithSlots, slot: SlotWithAudience) {
+    if (slot.audienceOverride) {
+      return {
+        audience: slot.audienceOverride,
+        audienceGrade: slot.audienceGrade,
+        audienceTeacherId: slot.audienceTeacherId,
+        audienceTeacherName: slot.audienceTeacher?.name ?? null,
+      };
     }
+    return {
+      audience: opportunity.audience,
+      audienceGrade: opportunity.audienceGrade,
+      audienceTeacherId: opportunity.audienceTeacherId,
+      audienceTeacherName: opportunity.audienceTeacher?.name ?? null,
+    };
+  }
+
+  function audienceVisible(a: { audience: string; audienceGrade: string | null; audienceTeacherId: number | null }) {
+    if (a.audience === "SCHOOL") return true;
+    if (a.audience === "GRADE") return a.audienceGrade === studentGrade;
+    if (a.audience === "CLASSROOM") return a.audienceTeacherId === studentTeacherId;
     return false;
   }
 
-  function audienceLabel(opportunity: (typeof opportunities)[number]) {
-    if (opportunity.audience === "GRADE") {
-      const g = opportunity.audienceGrade;
-      return `Grade ${g === "K" ? "Kindergarten" : g} only`;
+  function slotVisible(opportunity: OpportunityWithSlots, slot: SlotWithAudience) {
+    return audienceVisible(effectiveAudience(opportunity, slot));
+  }
+
+  function audienceNote(a: {
+    audience: string;
+    audienceGrade: string | null;
+    audienceTeacherName: string | null;
+  }) {
+    if (a.audience === "GRADE") {
+      return `${gradeLabel(a.audienceGrade)} only`;
     }
-    if (opportunity.audience === "CLASSROOM") {
-      return opportunity.audienceTeacher
-        ? `${opportunity.audienceTeacher.name}'s classroom only`
-        : "Specific classroom only";
+    if (a.audience === "CLASSROOM") {
+      return a.audienceTeacherName ? `${a.audienceTeacherName}'s classroom only` : "Specific classroom only";
     }
     return null;
   }
@@ -237,12 +263,29 @@ async function ApprovedVolunteerView({
           <div className="flex flex-col gap-8">
             {opportunities.map((opportunity) => {
               const eligible = clearanceLevel >= opportunity.requiredClearance;
+              const visibleSlots = opportunity.slots.filter((slot) =>
+                slotVisible(opportunity, slot)
+              );
+              const anyVisible =
+                opportunity.slots.length === 0
+                  ? audienceVisible(opportunity)
+                  : visibleSlots.length > 0;
 
-              if (!isVisible(opportunity)) {
+              if (!anyVisible) {
+                const note =
+                  opportunity.slots.length === 0
+                    ? audienceNote({
+                        audience: opportunity.audience,
+                        audienceGrade: opportunity.audienceGrade,
+                        audienceTeacherName: opportunity.audienceTeacher?.name ?? null,
+                      })
+                    : audienceNote(effectiveAudience(opportunity, opportunity.slots[0]));
                 return (
                   <div key={opportunity.id}>
                     <h3 className="font-medium text-gray-500">{opportunity.name}</h3>
-                    <p className="text-sm text-gray-500">{audienceLabel(opportunity)}</p>
+                    <p className="text-sm text-gray-500">
+                      {note ?? "Not available for your student."}
+                    </p>
                   </div>
                 );
               }
@@ -250,9 +293,6 @@ async function ApprovedVolunteerView({
               return (
                 <div key={opportunity.id}>
                   <h3 className="font-medium">{opportunity.name}</h3>
-                  {audienceLabel(opportunity) && (
-                    <p className="text-xs text-gray-500 mb-1">{audienceLabel(opportunity)}</p>
-                  )}
                   {opportunity.description && (
                     <p className="text-sm text-gray-600 mb-2">
                       {opportunity.description}
@@ -264,7 +304,7 @@ async function ApprovedVolunteerView({
                       Your current level is {clearanceLevel}.
                     </p>
                   )}
-                  {opportunity.slots.length === 0 ? (
+                  {visibleSlots.length === 0 ? (
                     <p className="text-sm text-gray-600">No slots posted yet.</p>
                   ) : (
                     <table className="w-full text-sm border-collapse">
@@ -277,15 +317,19 @@ async function ApprovedVolunteerView({
                         </tr>
                       </thead>
                       <tbody>
-                        {opportunity.slots.map((slot) => {
+                        {visibleSlots.map((slot) => {
                           const alreadySignedUp = slot.commitments.some(
                             (c) => c.volunteerId === volunteerId
                           );
                           const remaining = slot.capacity - slot.commitments.length;
+                          const note = audienceNote(effectiveAudience(opportunity, slot));
                           return (
                             <tr key={slot.id} className="border-b border-gray-100">
                               <td className="py-3 pr-4">
                                 {formatSlotDate(slot.date)}
+                                {note && (
+                                  <span className="block text-xs text-gray-500">{note}</span>
+                                )}
                               </td>
                               <td className="py-3 pr-4">
                                 {formatSlotTime(slot.startTime)} –{" "}

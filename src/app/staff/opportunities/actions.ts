@@ -53,10 +53,49 @@ function datesInRange(startDate: string, endDate: string, daysOfWeek: number[]):
   return dates;
 }
 
-function buildSlotRows(opportunityId: number, config: SchedulingConfig) {
+export type AudienceConfig =
+  | { audience: "SCHOOL" }
+  | { audience: "GRADE"; audienceGrade: string }
+  | { audience: "CLASSROOM"; audienceTeacherId: number };
+
+// An "inherit" override means the slot has no audience of its own and just
+// follows its parent Opportunity's audience — the normal case. A batch of
+// slots can instead be tagged with its own audience, letting one event
+// (e.g. an all-day Jog-a-thon) mix grade-specific shifts under one
+// opportunity instead of staff creating a separate opportunity per grade.
+export type SlotAudienceOverride = { mode: "inherit" } | ({ mode: "override" } & AudienceConfig);
+
+function validateAudience(audience: AudienceConfig) {
+  if (audience.audience === "GRADE" && !audience.audienceGrade) {
+    throw new Error("Select a grade.");
+  }
+  if (audience.audience === "CLASSROOM" && !audience.audienceTeacherId) {
+    throw new Error("Select a teacher.");
+  }
+}
+
+function buildSlotRows(
+  opportunityId: number,
+  config: SchedulingConfig,
+  audienceOverride: SlotAudienceOverride
+) {
   if (config.capacity < 1) {
     throw new Error("Capacity must be at least 1.");
   }
+
+  if (audienceOverride.mode === "override") {
+    validateAudience(audienceOverride);
+  }
+
+  const audienceFields =
+    audienceOverride.mode === "override"
+      ? {
+          audienceOverride: audienceOverride.audience,
+          audienceGrade: audienceOverride.audience === "GRADE" ? audienceOverride.audienceGrade : null,
+          audienceTeacherId:
+            audienceOverride.audience === "CLASSROOM" ? audienceOverride.audienceTeacherId : null,
+        }
+      : { audienceOverride: null, audienceGrade: null, audienceTeacherId: null };
 
   const rows: {
     opportunityId: number;
@@ -64,6 +103,9 @@ function buildSlotRows(opportunityId: number, config: SchedulingConfig) {
     startTime: Date;
     endTime: Date;
     capacity: number;
+    audienceOverride: "SCHOOL" | "GRADE" | "CLASSROOM" | null;
+    audienceGrade: string | null;
+    audienceTeacherId: number | null;
   }[] = [];
 
   if (config.mode === "dates") {
@@ -83,6 +125,7 @@ function buildSlotRows(opportunityId: number, config: SchedulingConfig) {
           startTime: toTime(startTime),
           endTime: toTime(endTime),
           capacity: config.capacity,
+          ...audienceFields,
         });
       }
     }
@@ -105,6 +148,7 @@ function buildSlotRows(opportunityId: number, config: SchedulingConfig) {
           startTime: toTime(config.startTime),
           endTime: toTime(config.endTime),
           capacity: config.capacity,
+          ...audienceFields,
         });
       }
     }
@@ -113,29 +157,20 @@ function buildSlotRows(opportunityId: number, config: SchedulingConfig) {
   return rows;
 }
 
-export type AudienceConfig =
-  | { audience: "SCHOOL" }
-  | { audience: "GRADE"; audienceGrade: string }
-  | { audience: "CLASSROOM"; audienceTeacherId: number };
-
 export async function createOpportunityWithSlots(input: {
   name: string;
   description: string;
   requiredClearance: number;
   audience: AudienceConfig;
   scheduling: SchedulingConfig;
+  slotAudience: SlotAudienceOverride;
 }) {
   await requireActiveStaff();
 
   const name = input.name.trim();
   if (!name) throw new Error("Name is required.");
 
-  if (input.audience.audience === "GRADE" && !input.audience.audienceGrade) {
-    throw new Error("Select a grade for a grade-specific opportunity.");
-  }
-  if (input.audience.audience === "CLASSROOM" && !input.audience.audienceTeacherId) {
-    throw new Error("Select a teacher for a classroom-specific opportunity.");
-  }
+  validateAudience(input.audience);
 
   const opportunity = await prisma.opportunity.create({
     data: {
@@ -149,7 +184,7 @@ export async function createOpportunityWithSlots(input: {
     },
   });
 
-  const rows = buildSlotRows(opportunity.id, input.scheduling);
+  const rows = buildSlotRows(opportunity.id, input.scheduling, input.slotAudience);
   if (rows.length > 0) {
     await prisma.slot.createMany({ data: rows });
   }
@@ -158,9 +193,13 @@ export async function createOpportunityWithSlots(input: {
   revalidatePath("/volunteer");
 }
 
-export async function addSlotsToOpportunity(opportunityId: number, scheduling: SchedulingConfig) {
+export async function addSlotsToOpportunity(
+  opportunityId: number,
+  scheduling: SchedulingConfig,
+  slotAudience: SlotAudienceOverride
+) {
   await requireActiveStaff();
-  const rows = buildSlotRows(opportunityId, scheduling);
+  const rows = buildSlotRows(opportunityId, scheduling, slotAudience);
   if (rows.length > 0) {
     await prisma.slot.createMany({ data: rows });
   }

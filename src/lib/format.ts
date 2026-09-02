@@ -9,3 +9,8 @@ export function formatSlotDate(d: Date): string {
 export function formatSlotTime(d: Date): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: "UTC" });
 }
+
+export function gradeLabel(grade: string | null): string {
+  if (!grade) return "";
+  return grade === "K" ? "Kindergarten" : `Grade ${grade}`;
+}

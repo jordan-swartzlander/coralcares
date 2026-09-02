@@ -4,7 +4,7 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { setOpportunityActive } from "./actions";
-import { formatSlotDate, formatSlotTime } from "@/lib/format";
+import { formatSlotDate, formatSlotTime, gradeLabel } from "@/lib/format";
 import { OpportunityForm } from "./opportunity-form";
 import { AddSlotsForm } from "./add-slots-form";
 import { SlotDeleteButton } from "./slot-delete-button";
@@ -21,7 +21,10 @@ export default async function StaffOpportunitiesPage() {
       include: {
         slots: {
           orderBy: { date: "asc" },
-          include: { commitments: { where: { status: "CONFIRMED" } } },
+          include: {
+            commitments: { where: { status: "CONFIRMED" } },
+            audienceTeacher: true,
+          },
         },
         audienceTeacher: true,
       },
@@ -34,13 +37,23 @@ export default async function StaffOpportunitiesPage() {
 
   function audienceLabel(opportunity: (typeof opportunities)[number]) {
     if (opportunity.audience === "GRADE") {
-      const g = opportunity.audienceGrade;
-      return `Grade ${g === "K" ? "Kindergarten" : g}`;
+      return gradeLabel(opportunity.audienceGrade);
     }
     if (opportunity.audience === "CLASSROOM") {
       return opportunity.audienceTeacher
         ? `${opportunity.audienceTeacher.name}'s classroom`
         : "Classroom (teacher removed)";
+    }
+    return "Entire school";
+  }
+
+  function slotAudienceLabel(opportunity: (typeof opportunities)[number], slot: (typeof opportunity.slots)[number]) {
+    if (!slot.audienceOverride) return null;
+    if (slot.audienceOverride === "GRADE") {
+      return gradeLabel(slot.audienceGrade);
+    }
+    if (slot.audienceOverride === "CLASSROOM") {
+      return slot.audienceTeacher ? `${slot.audienceTeacher.name}'s classroom` : "Classroom";
     }
     return "Entire school";
   }
@@ -101,6 +114,7 @@ export default async function StaffOpportunitiesPage() {
                   <tr className="text-left border-b border-gray-300">
                     <th className="py-2 pr-4">Date</th>
                     <th className="py-2 pr-4">Time</th>
+                    <th className="py-2 pr-4">For</th>
                     <th className="py-2 pr-4">Filled</th>
                     <th className="py-2"></th>
                   </tr>
@@ -111,6 +125,9 @@ export default async function StaffOpportunitiesPage() {
                       <td className="py-2 pr-4">{formatSlotDate(slot.date)}</td>
                       <td className="py-2 pr-4">
                         {formatSlotTime(slot.startTime)} – {formatSlotTime(slot.endTime)}
+                      </td>
+                      <td className="py-2 pr-4 text-gray-500">
+                        {slotAudienceLabel(opportunity, slot) ?? "—"}
                       </td>
                       <td className="py-2 pr-4">
                         {slot.commitments.length} / {slot.capacity}
@@ -124,7 +141,7 @@ export default async function StaffOpportunitiesPage() {
               </table>
             )}
 
-            <AddSlotsForm opportunityId={opportunity.id} />
+            <AddSlotsForm opportunityId={opportunity.id} teachers={teachers} />
           </div>
         ))}
       </section>

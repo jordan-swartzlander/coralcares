@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createOpportunityWithSlots, type AudienceConfig } from "./actions";
 import { useSchedulingFields } from "./use-scheduling-fields";
+import { useSlotAudienceOverride } from "./use-slot-audience-override";
 
 const GRADES = ["K", "1", "2", "3", "4", "5"];
 
@@ -23,6 +24,11 @@ export function OpportunityForm({
   const [pending, setPending] = useState(false);
 
   const { fields, getConfig, reset } = useSchedulingFields();
+  const {
+    fields: slotAudienceFields,
+    getOverride: getSlotAudienceOverride,
+    reset: resetSlotAudience,
+  } = useSlotAudienceOverride(teachers);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +51,7 @@ export function OpportunityForm({
         requiredClearance,
         audience,
         scheduling: getConfig(),
+        slotAudience: getSlotAudienceOverride(),
       });
       setName("");
       setDescription("");
@@ -53,6 +60,7 @@ export function OpportunityForm({
       setAudienceGrade("");
       setAudienceTeacherId("");
       reset();
+      resetSlotAudience();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -158,6 +166,8 @@ export function OpportunityForm({
           </select>
         )}
       </fieldset>
+
+      {slotAudienceFields}
 
       {fields}
 

@@ -4,13 +4,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addSlotsToOpportunity } from "./actions";
 import { useSchedulingFields } from "./use-scheduling-fields";
+import { useSlotAudienceOverride } from "./use-slot-audience-override";
 
-export function AddSlotsForm({ opportunityId }: { opportunityId: number }) {
+export function AddSlotsForm({
+  opportunityId,
+  teachers,
+}: {
+  opportunityId: number;
+  teachers: { id: number; name: string; grade: string }[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const { fields, getConfig, reset } = useSchedulingFields();
+  const {
+    fields: slotAudienceFields,
+    getOverride: getSlotAudienceOverride,
+    reset: resetSlotAudience,
+  } = useSlotAudienceOverride(teachers);
 
   if (!open) {
     return (
@@ -25,8 +37,9 @@ export function AddSlotsForm({ opportunityId }: { opportunityId: number }) {
     setError(null);
     setPending(true);
     try {
-      await addSlotsToOpportunity(opportunityId, getConfig());
+      await addSlotsToOpportunity(opportunityId, getConfig(), getSlotAudienceOverride());
       reset();
+      resetSlotAudience();
       setOpen(false);
       router.refresh();
     } catch (err) {
@@ -38,6 +51,8 @@ export function AddSlotsForm({ opportunityId }: { opportunityId: number }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-xl">
+      {slotAudienceFields}
+
       {fields}
 
       {error && (

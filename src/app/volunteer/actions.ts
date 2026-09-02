@@ -31,11 +31,14 @@ export async function signUpForSlot(slotId: number) {
   }
 
   const { opportunity } = slot;
+  const effective = slot.audienceOverride
+    ? { audience: slot.audienceOverride, audienceGrade: slot.audienceGrade, audienceTeacherId: slot.audienceTeacherId }
+    : { audience: opportunity.audience, audienceGrade: opportunity.audienceGrade, audienceTeacherId: opportunity.audienceTeacherId };
   const audienceMatches =
-    opportunity.audience === "SCHOOL" ||
-    (opportunity.audience === "GRADE" && opportunity.audienceGrade === volunteer.studentGrade) ||
-    (opportunity.audience === "CLASSROOM" &&
-      opportunity.audienceTeacherId === volunteer.studentTeacherId);
+    effective.audience === "SCHOOL" ||
+    (effective.audience === "GRADE" && effective.audienceGrade === volunteer.studentGrade) ||
+    (effective.audience === "CLASSROOM" &&
+      effective.audienceTeacherId === volunteer.studentTeacherId);
   if (!audienceMatches) {
     revalidatePath("/volunteer");
     return;
