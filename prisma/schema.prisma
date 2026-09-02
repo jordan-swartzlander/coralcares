@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VolunteerStatus {
+  PENDING
+  APPROVED
+  DENIED
+
+  @@map("volunteer_status")
+}
+
+enum CommitmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+
+  @@map("commitment_status")
+}
+
+model Volunteer {
+  id               Int              @id @default(autoincrement())
+  name             String
+  email            String           @unique
+  phone            String?
+  studentName      String?          @map("student_name")
+  status           VolunteerStatus  @default(PENDING)
+  clearanceLevel   Int              @default(0) @map("clearance_level")
+  totalHours       Float            @default(0) @map("total_hours")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  approvedByStaffId Int?            @map("approved_by_staff_id")
+  approvedAt       DateTime?        @map("approved_at")
+
+  approvedBy       Staff?           @relation(fields: [approvedByStaffId], references: [id])
+  commitments      Commitment[]
+  strikes          Strike[]
+
+  @@map("volunteers")
+}
+
+model Staff {
+  id           Int         @id @default(autoincrement())
+  email        String      @unique
+  passwordHash String      @map("password_hash")
+  name         String
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  approvedVolunteers Volunteer[]
+
+  @@map("staff")
+}
+
+model Opportunity {
+  id                Int      @id @default(autoincrement())
+  name              String
+  description       String?
+  requiredClearance Int      @default(0) @map("required_clearance")
+  active            Boolean  @default(true)
+
+  slots             Slot[]
+
+  @@map("opportunities")
+}
+
+model Slot {
+  id            Int         @id @default(autoincrement())
+  opportunityId Int         @map("opportunity_id")
+  date          DateTime    @db.Date
+  startTime     DateTime    @map("start_time") @db.Time()
+  endTime       DateTime    @map("end_time") @db.Time()
+  capacity      Int
+
+  opportunity   Opportunity  @relation(fields: [opportunityId], references: [id])
+  commitments   Commitment[]
+
+  @@map("slots")
+}
+
+model Commitment {
+  id          Int              @id @default(autoincrement())
+  volunteerId Int              @map("volunteer_id")
+  slotId      Int              @map("slot_id")
+  status      CommitmentStatus @default(PENDING)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  volunteer   Volunteer  @relation(fields: [volunteerId], references: [id])
+  slot        Slot       @relation(fields: [slotId], references: [id])
+  checkin     Checkin?
+  strikes     Strike[]
+
+  @@map("commitments")
+}
+
+model Checkin {
+  id            Int       @id @default(autoincrement())
+  commitmentId  Int       @unique @map("commitment_id")
+  checkInTime   DateTime? @map("check_in_time")
+  checkOutTime  DateTime? @map("check_out_time")
+
+  commitment    Commitment @relation(fields: [commitmentId], references: [id])
+
+  @@map("checkins")
+}
+
+model Strike {
+  id           Int         @id @default(autoincrement())
+  volunteerId  Int         @map("volunteer_id")
+  commitmentId Int?        @map("commitment_id")
+  reason       String
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  volunteer    Volunteer   @relation(fields: [volunteerId], references: [id])
+  commitment   Commitment? @relation(fields: [commitmentId], references: [id])
+
+  @@map("strikes")
+}
