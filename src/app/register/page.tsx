@@ -10,8 +10,9 @@ export default function RegisterPage() {
     <main className="mx-auto max-w-md w-full px-6 py-16">
       <h1 className="text-2xl font-semibold mb-2">Volunteer Registration</h1>
       <p className="text-sm text-gray-600 mb-8">
-        Fill out the form below to apply to volunteer. Your application will be
-        reviewed by school staff before you can sign up for opportunities.
+        Fill out the form below to apply to volunteer and create your account.
+        Your application will be reviewed by school staff before you can sign
+        up for opportunities.
       </p>
 
       <form action={formAction} className="flex flex-col gap-4">
@@ -52,6 +53,28 @@ export default function RegisterPage() {
             name="studentName"
             type="text"
             required
+            className="border border-gray-300 rounded-md px-3 py-2"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Password</span>
+          <input
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Confirm password</span>
+          <input
+            name="confirmPassword"
+            type="password"
+            required
+            minLength={8}
             className="border border-gray-300 rounded-md px-3 py-2"
           />
         </label>

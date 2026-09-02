@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-export default function StaffLoginPage() {
+export default function VolunteerLoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -15,7 +16,7 @@ export default function StaffLoginPage() {
     setError(null);
 
     const formData = new FormData(e.currentTarget);
-    const result = await signIn("staff", {
+    const result = await signIn("volunteer", {
       email: formData.get("email"),
       password: formData.get("password"),
       redirect: false,
@@ -28,13 +29,13 @@ export default function StaffLoginPage() {
       return;
     }
 
-    router.push("/staff");
+    router.push("/volunteer");
     router.refresh();
   }
 
   return (
     <main className="mx-auto max-w-sm w-full px-6 py-16">
-      <h1 className="text-2xl font-semibold mb-8">Staff Login</h1>
+      <h1 className="text-2xl font-semibold mb-8">Volunteer Login</h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1">
@@ -70,6 +71,13 @@ export default function StaffLoginPage() {
         >
           {pending ? "Signing in..." : "Sign in"}
         </button>
+
+        <p className="text-sm text-gray-600">
+          Not registered yet?{" "}
+          <Link href="/register" className="underline">
+            Apply to volunteer
+          </Link>
+        </p>
       </form>
     </main>
   );

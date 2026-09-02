@@ -32,16 +32,17 @@ model Volunteer {
   email            String           @unique
   phone            String?
   studentName      String?          @map("student_name")
+  passwordHash     String           @map("password_hash")
   status           VolunteerStatus  @default(PENDING)
-  clearanceLevel   Int              @default(0) @map("clearance_level")
   totalHours       Float            @default(0) @map("total_hours")
   createdAt        DateTime         @default(now()) @map("created_at")
   approvedByStaffId Int?            @map("approved_by_staff_id")
   approvedAt       DateTime?        @map("approved_at")
 
-  approvedBy       Staff?           @relation(fields: [approvedByStaffId], references: [id])
+  approvedBy       Staff?               @relation(fields: [approvedByStaffId], references: [id])
   commitments      Commitment[]
   strikes          Strike[]
+  clearances       VolunteerClearance[]
 
   @@map("volunteers")
 }
@@ -53,9 +54,39 @@ model Staff {
   name         String
   createdAt    DateTime    @default(now()) @map("created_at")
 
-  approvedVolunteers Volunteer[]
+  approvedVolunteers  Volunteer[]
+  approvedClearances  VolunteerClearance[]
 
   @@map("staff")
+}
+
+// One row per volunteer per school year. Absence of a row for the current
+// school year means the volunteer has not been cleared this year (level 0) —
+// starting a new school year is just switching AppSettings.currentSchoolYear,
+// no data needs to change. Prior years' rows stay untouched as history.
+model VolunteerClearance {
+  id                Int       @id @default(autoincrement())
+  volunteerId       Int       @map("volunteer_id")
+  schoolYear        String    @map("school_year")
+  level             Int       @default(0)
+  approvedByStaffId Int?      @map("approved_by_staff_id")
+  approvedAt        DateTime? @map("approved_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  volunteer  Volunteer @relation(fields: [volunteerId], references: [id])
+  approvedBy Staff?    @relation(fields: [approvedByStaffId], references: [id])
+
+  @@unique([volunteerId, schoolYear])
+  @@map("volunteer_clearances")
+}
+
+// Singleton row (id is always 1) holding app-wide settings.
+model AppSettings {
+  id                Int    @id @default(1)
+  currentSchoolYear String @map("current_school_year")
+
+  @@map("app_settings")
 }
 
 model Opportunity {
@@ -96,6 +127,7 @@ model Commitment {
   checkin     Checkin?
   strikes     Strike[]
 
+  @@unique([volunteerId, slotId])
   @@map("commitments")
 }
 

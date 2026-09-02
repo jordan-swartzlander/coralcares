@@ -15,6 +15,12 @@ export default function Home() {
         >
           Apply to volunteer
         </Link>
+        <Link
+          href="/volunteer/login"
+          className="border border-gray-300 rounded-md px-4 py-2"
+        >
+          Volunteer login
+        </Link>
         <Link href="/staff/login" className="text-sm underline">
           Staff login
         </Link>
