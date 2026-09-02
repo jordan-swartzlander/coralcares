@@ -11,7 +11,7 @@ export default function HowToVolunteerPage() {
 
       <ol className="flex flex-col gap-6 mb-10">
         <li>
-          <p className="text-sm font-medium mb-1">1. Download the volunteer application</p>
+          <p className="text-sm font-medium mb-1">1. Download, complete, and submit the application</p>
           <p className="text-sm text-gray-600 mb-2">
             <a
               href="https://drive.google.com/file/d/1o-X3Rg-0wTRrA1Ip6Hdnj-L2AwrraTir/view"
@@ -22,6 +22,10 @@ export default function HowToVolunteerPage() {
               Coral Academy NW Volunteer Application
             </a>
           </p>
+          <p className="text-sm text-gray-600 mb-2">
+            Submitting this application automatically starts your background
+            check — there&apos;s no separate step for it.
+          </p>
           <p className="text-sm text-amber-600">
             This application must be submitted in person at the school
             office. Please bring a valid photo ID with you — it needs to be
@@ -29,21 +33,14 @@ export default function HowToVolunteerPage() {
           </p>
         </li>
         <li>
-          <p className="text-sm font-medium mb-1">2. Complete a background check</p>
-          <p className="text-sm text-gray-600">
-            The office will walk you through the required background check
-            paperwork.
-          </p>
-        </li>
-        <li>
-          <p className="text-sm font-medium mb-1">3. Get your account link</p>
+          <p className="text-sm font-medium mb-1">2. Get your account link</p>
           <p className="text-sm text-gray-600">
             Once you&apos;re cleared, staff will text or email you a link to
             set up your volunteer account.
           </p>
         </li>
         <li>
-          <p className="text-sm font-medium mb-1">4. Sign up for opportunities</p>
+          <p className="text-sm font-medium mb-1">3. Sign up for opportunities</p>
           <p className="text-sm text-gray-600">
             Log in anytime to browse and sign up for volunteer opportunities.
           </p>
