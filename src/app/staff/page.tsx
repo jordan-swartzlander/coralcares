@@ -14,6 +14,47 @@ export default async function StaffPage() {
     redirect("/staff/login");
   }
 
+  const canManage =
+    session.user.staffRole === "OWNER" || session.user.staffRole === "ADMINISTRATOR";
+
+  if (session.user.staffStatus !== "ACTIVE") {
+    return (
+      <main className="mx-auto max-w-md w-full px-6 py-16">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-semibold">Staff Dashboard</h1>
+          <SignOutButton />
+        </div>
+        {session.user.staffStatus === "PENDING_APPROVAL" ? (
+          <p className="text-sm text-gray-600">
+            Your staff account is awaiting approval from an Owner or Administrator.
+          </p>
+        ) : (
+          <p className="text-sm text-gray-600">
+            Your staff account was not approved. Contact an Owner or Administrator
+            if you have questions.
+          </p>
+        )}
+      </main>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <main className="mx-auto max-w-md w-full px-6 py-16">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold">Staff Dashboard</h1>
+            <p className="text-sm text-gray-600">Signed in as {session.user.email}</p>
+          </div>
+          <SignOutButton />
+        </div>
+        <Link href="/staff/opportunities" className="text-sm underline">
+          Manage Opportunities
+        </Link>
+      </main>
+    );
+  }
+
   const schoolYear = await getCurrentSchoolYear();
 
   const [pendingVolunteers, approvedVolunteers] = await Promise.all([
@@ -34,9 +75,14 @@ export default async function StaffPage() {
         <div>
           <h1 className="text-2xl font-semibold">Staff Dashboard</h1>
           <p className="text-sm text-gray-600">Signed in as {session.user.email}</p>
-          <Link href="/staff/opportunities" className="text-sm underline">
-            Manage Opportunities
-          </Link>
+          <div className="flex gap-4">
+            <Link href="/staff/opportunities" className="text-sm underline">
+              Manage Opportunities
+            </Link>
+            <Link href="/staff/accounts" className="text-sm underline">
+              Manage Staff
+            </Link>
+          </div>
         </div>
         <SignOutButton />
       </div>

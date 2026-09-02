@@ -3,12 +3,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createOpportunity, setOpportunityActive, createSlot } from "./actions";
+import { setOpportunityActive } from "./actions";
 import { formatSlotDate, formatSlotTime } from "@/lib/format";
+import { OpportunityForm } from "./opportunity-form";
+import { AddSlotsForm } from "./add-slots-form";
+import { SlotDeleteButton } from "./slot-delete-button";
 
 export default async function StaffOpportunitiesPage() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "staff") {
+  if (!session || session.user.role !== "staff" || session.user.staffStatus !== "ACTIVE") {
     redirect("/staff/login");
   }
 
@@ -33,43 +36,7 @@ export default async function StaffOpportunitiesPage() {
 
       <section className="mb-12">
         <h2 className="text-lg font-semibold mb-4">New Opportunity</h2>
-        <form action={createOpportunity} className="flex flex-col gap-4 max-w-md">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Name</span>
-            <input
-              name="name"
-              type="text"
-              required
-              className="border border-gray-300 rounded-md px-3 py-2"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Description (optional)</span>
-            <textarea
-              name="description"
-              className="border border-gray-300 rounded-md px-3 py-2"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Required clearance level</span>
-            <input
-              name="requiredClearance"
-              type="number"
-              min={0}
-              defaultValue={1}
-              className="border border-gray-300 rounded-md px-3 py-2"
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="bg-black text-white rounded-md px-4 py-2 self-start"
-          >
-            Create opportunity
-          </button>
-        </form>
+        <OpportunityForm />
       </section>
 
       <section className="flex flex-col gap-10">
@@ -114,6 +81,7 @@ export default async function StaffOpportunitiesPage() {
                     <th className="py-2 pr-4">Date</th>
                     <th className="py-2 pr-4">Time</th>
                     <th className="py-2 pr-4">Filled</th>
+                    <th className="py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -126,61 +94,16 @@ export default async function StaffOpportunitiesPage() {
                       <td className="py-2 pr-4">
                         {slot.commitments.length} / {slot.capacity}
                       </td>
+                      <td className="py-2">
+                        <SlotDeleteButton slotId={slot.id} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
 
-            <form
-              action={createSlot.bind(null, opportunity.id)}
-              className="flex flex-wrap items-end gap-3"
-            >
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium">Date</span>
-                <input
-                  name="date"
-                  type="date"
-                  required
-                  className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium">Start</span>
-                <input
-                  name="startTime"
-                  type="time"
-                  required
-                  className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium">End</span>
-                <input
-                  name="endTime"
-                  type="time"
-                  required
-                  className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium">Capacity</span>
-                <input
-                  name="capacity"
-                  type="number"
-                  min={1}
-                  defaultValue={1}
-                  required
-                  className="border border-gray-300 rounded-md px-2 py-1 text-sm w-20"
-                />
-              </label>
-              <button
-                type="submit"
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-              >
-                Add slot
-              </button>
-            </form>
+            <AddSlotsForm opportunityId={opportunity.id} />
           </div>
         ))}
       </section>

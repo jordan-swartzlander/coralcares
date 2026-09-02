@@ -26,6 +26,22 @@ enum CommitmentStatus {
   @@map("commitment_status")
 }
 
+enum StaffRole {
+  OWNER
+  ADMINISTRATOR
+  STAFF
+
+  @@map("staff_role")
+}
+
+enum StaffStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  DENIED
+
+  @@map("staff_status")
+}
+
 model Volunteer {
   id               Int              @id @default(autoincrement())
   name             String
@@ -52,12 +68,34 @@ model Staff {
   email        String      @unique
   passwordHash String      @map("password_hash")
   name         String
+  role         StaffRole   @default(STAFF)
+  status       StaffStatus @default(PENDING_APPROVAL)
   createdAt    DateTime    @default(now()) @map("created_at")
 
   approvedVolunteers  Volunteer[]
   approvedClearances  VolunteerClearance[]
+  sentInvites         StaffInvite[]
 
   @@map("staff")
+}
+
+// Created by an Owner/Administrator to let someone self-complete a staff
+// account (set name + password) via a one-time link. The Staff row itself
+// isn't created until the invitee completes signup, and it starts out
+// PENDING_APPROVAL — completing an invite does not grant access by itself.
+model StaffInvite {
+  id               Int       @id @default(autoincrement())
+  email            String
+  role             StaffRole
+  token            String    @unique
+  invitedByStaffId Int       @map("invited_by_staff_id")
+  expiresAt        DateTime  @map("expires_at")
+  usedAt           DateTime? @map("used_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  invitedBy Staff @relation(fields: [invitedByStaffId], references: [id])
+
+  @@map("staff_invites")
 }
 
 // One row per volunteer per school year. Absence of a row for the current

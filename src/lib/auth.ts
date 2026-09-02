@@ -25,7 +25,14 @@ export const authOptions: AuthOptions = {
         const valid = await bcrypt.compare(credentials.password, staff.passwordHash);
         if (!valid) return null;
 
-        return { id: String(staff.id), email: staff.email, name: staff.name, role: "staff" };
+        return {
+          id: String(staff.id),
+          email: staff.email,
+          name: staff.name,
+          role: "staff",
+          staffRole: staff.role,
+          staffStatus: staff.status,
+        };
       },
     }),
     CredentialsProvider({
@@ -60,6 +67,8 @@ export const authOptions: AuthOptions = {
       if (user) {
         token.entityId = user.id;
         token.role = user.role;
+        token.staffRole = user.staffRole;
+        token.staffStatus = user.staffStatus;
       }
       return token;
     },
@@ -67,18 +76,37 @@ export const authOptions: AuthOptions = {
       if (session.user) {
         session.user.id = token.entityId as string;
         session.user.role = token.role as "staff" | "volunteer";
+        session.user.staffRole = token.staffRole;
+        session.user.staffStatus = token.staffStatus;
       }
       return session;
     },
   },
 };
 
-export async function requireStaffId(): Promise<number> {
+export type StaffRoleType = "OWNER" | "ADMINISTRATOR" | "STAFF";
+
+/** Any authenticated, ACTIVE staff account regardless of role. */
+export async function requireActiveStaff(): Promise<{ id: number; role: StaffRoleType }> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || session.user.role !== "staff") {
     throw new Error("Unauthorized");
   }
-  return Number(session.user.id);
+  if (session.user.staffStatus !== "ACTIVE") {
+    throw new Error("Account is not active");
+  }
+  return { id: Number(session.user.id), role: session.user.staffRole as StaffRoleType };
+}
+
+/** An authenticated, ACTIVE staff account whose role is one of allowedRoles. */
+export async function requireStaffRole(
+  allowedRoles: StaffRoleType[]
+): Promise<{ id: number; role: StaffRoleType }> {
+  const staff = await requireActiveStaff();
+  if (!allowedRoles.includes(staff.role)) {
+    throw new Error("Forbidden");
+  }
+  return staff;
 }
 
 export async function requireVolunteerId(): Promise<number> {

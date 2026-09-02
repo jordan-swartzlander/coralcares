@@ -1,12 +1,12 @@
 "use server";
 
-import { requireStaffId } from "@/lib/auth";
+import { requireStaffRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSchoolYear } from "@/lib/school-year";
 import { revalidatePath } from "next/cache";
 
 export async function approveVolunteer(volunteerId: number) {
-  const staffId = await requireStaffId();
+  const { id: staffId } = await requireStaffRole(["OWNER", "ADMINISTRATOR"]);
   await prisma.volunteer.update({
     where: { id: volunteerId },
     data: { status: "APPROVED", approvedByStaffId: staffId, approvedAt: new Date() },
@@ -15,7 +15,7 @@ export async function approveVolunteer(volunteerId: number) {
 }
 
 export async function denyVolunteer(volunteerId: number) {
-  const staffId = await requireStaffId();
+  const { id: staffId } = await requireStaffRole(["OWNER", "ADMINISTRATOR"]);
   await prisma.volunteer.update({
     where: { id: volunteerId },
     data: { status: "DENIED", approvedByStaffId: staffId, approvedAt: new Date() },
@@ -24,7 +24,7 @@ export async function denyVolunteer(volunteerId: number) {
 }
 
 export async function setBackgroundCheckApproved(volunteerId: number, approved: boolean) {
-  const staffId = await requireStaffId();
+  const { id: staffId } = await requireStaffRole(["OWNER", "ADMINISTRATOR"]);
   const schoolYear = await getCurrentSchoolYear();
 
   await prisma.volunteerClearance.upsert({
@@ -46,7 +46,7 @@ export async function setBackgroundCheckApproved(volunteerId: number, approved: 
 }
 
 export async function startNewSchoolYear(newSchoolYear: string) {
-  await requireStaffId();
+  await requireStaffRole(["OWNER", "ADMINISTRATOR"]);
   const trimmed = newSchoolYear.trim();
   if (!trimmed) return;
 

@@ -21,8 +21,8 @@ async function main() {
 
   await prisma.staff.upsert({
     where: { email },
-    update: { passwordHash, name },
-    create: { email, passwordHash, name },
+    update: { passwordHash, name, role: "OWNER", status: "ACTIVE" },
+    create: { email, passwordHash, name, role: "OWNER", status: "ACTIVE" },
   });
 
   console.log(`Staff account ready: ${email}`);
