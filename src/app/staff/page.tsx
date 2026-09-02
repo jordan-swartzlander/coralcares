@@ -4,7 +4,6 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSchoolYear } from "@/lib/school-year";
-import { startNewSchoolYear } from "./actions";
 import { SignOutButton } from "./sign-out-button";
 import { BackgroundCheckToggle } from "./background-check-toggle";
 
@@ -55,9 +54,14 @@ export default async function StaffPage() {
           </div>
           <SignOutButton />
         </div>
-        <Link href="/staff/opportunities" className="text-sm underline">
-          Manage Opportunities
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/staff/opportunities" className="text-sm underline">
+            Manage Opportunities
+          </Link>
+          <Link href="/staff/change-password" className="text-sm underline">
+            Change Password
+          </Link>
+        </div>
       </main>
     );
   }
@@ -80,46 +84,23 @@ export default async function StaffPage() {
             <Link href="/staff/opportunities" className="text-sm underline">
               Manage Opportunities
             </Link>
-            <Link href="/staff/accounts" className="text-sm underline">
-              Manage Staff
-            </Link>
             <Link href="/staff/volunteers/new" className="text-sm underline">
               New Volunteer
             </Link>
-            <Link href="/staff/teachers" className="text-sm underline">
-              Manage Teachers
+            <Link href="/staff/settings" className="text-sm underline">
+              School Settings
+            </Link>
+            <Link href="/staff/change-password" className="text-sm underline">
+              Change Password
             </Link>
           </div>
         </div>
         <SignOutButton />
       </div>
 
-      <section className="mb-12 flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          Current school year: <span className="font-medium">{schoolYear}</span>
-        </p>
-        <form
-          action={async (formData: FormData) => {
-            "use server";
-            const newYear = formData.get("newSchoolYear") as string;
-            await startNewSchoolYear(newYear);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            name="newSchoolYear"
-            type="text"
-            placeholder="e.g. 2027-2028"
-            className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-          />
-          <button
-            type="submit"
-            className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-          >
-            Start New School Year
-          </button>
-        </form>
-      </section>
+      <p className="text-sm text-gray-600 mb-8">
+        School year: <span className="font-medium">{schoolYear}</span>
+      </p>
 
       <section>
         <h2 className="text-lg font-semibold mb-4">Volunteers ({schoolYear})</h2>
