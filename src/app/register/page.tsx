@@ -1,98 +1,59 @@
-"use client";
+import Link from "next/link";
 
-import { useActionState } from "react";
-import { registerVolunteer } from "./actions";
-
-export default function RegisterPage() {
-  const [state, formAction, pending] = useActionState(registerVolunteer, undefined);
-
+export default function HowToVolunteerPage() {
   return (
     <main className="mx-auto max-w-md w-full px-6 py-16">
-      <h1 className="text-2xl font-semibold mb-2">Volunteer Registration</h1>
+      <h1 className="text-2xl font-semibold mb-2">Becoming a Volunteer</h1>
       <p className="text-sm text-gray-600 mb-8">
-        Fill out the form below to apply to volunteer and create your account.
-        Your application will be reviewed by school staff before you can sign
-        up for opportunities.
+        Here&apos;s how volunteering at Coral Academy NW works, from getting
+        started to signing up for opportunities.
       </p>
 
-      <form action={formAction} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Full name</span>
-          <input
-            name="name"
-            type="text"
-            required
-            className="border border-gray-300 rounded-md px-3 py-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Email</span>
-          <input
-            name="email"
-            type="email"
-            required
-            className="border border-gray-300 rounded-md px-3 py-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Phone (optional)</span>
-          <input
-            name="phone"
-            type="tel"
-            className="border border-gray-300 rounded-md px-3 py-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">
-            Your student&apos;s name (at Coral Academy NW)
-          </span>
-          <input
-            name="studentName"
-            type="text"
-            required
-            className="border border-gray-300 rounded-md px-3 py-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Password</span>
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Confirm password</span>
-          <input
-            name="confirmPassword"
-            type="password"
-            required
-            minLength={8}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          />
-        </label>
-
-        {state?.error && (
-          <p className="text-sm text-red-600" role="alert">
-            {state.error}
+      <ol className="flex flex-col gap-6 mb-10">
+        <li>
+          <p className="text-sm font-medium mb-1">1. Download the volunteer application</p>
+          <p className="text-sm text-gray-600 mb-2">
+            <a
+              href="https://drive.google.com/file/d/1o-X3Rg-0wTRrA1Ip6Hdnj-L2AwrraTir/view"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Coral Academy NW Volunteer Application
+            </a>
           </p>
-        )}
+          <p className="text-sm text-amber-600">
+            This application must be submitted in person at the school
+            office. Please bring a valid photo ID with you — it needs to be
+            on record when you drop off your application.
+          </p>
+        </li>
+        <li>
+          <p className="text-sm font-medium mb-1">2. Complete a background check</p>
+          <p className="text-sm text-gray-600">
+            The office will walk you through the required background check
+            paperwork.
+          </p>
+        </li>
+        <li>
+          <p className="text-sm font-medium mb-1">3. Get your account link</p>
+          <p className="text-sm text-gray-600">
+            Once you&apos;re cleared, staff will text or email you a link to
+            set up your volunteer account.
+          </p>
+        </li>
+        <li>
+          <p className="text-sm font-medium mb-1">4. Sign up for opportunities</p>
+          <p className="text-sm text-gray-600">
+            Log in anytime to browse and sign up for volunteer opportunities.
+          </p>
+        </li>
+      </ol>
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-2 bg-black text-white rounded-md px-4 py-2 disabled:opacity-50"
-        >
-          {pending ? "Submitting..." : "Submit application"}
-        </button>
-      </form>
+      <p className="text-sm text-gray-600 mb-2">Already have an account?</p>
+      <Link href="/volunteer/login" className="text-sm underline">
+        Volunteer login
+      </Link>
     </main>
   );
 }

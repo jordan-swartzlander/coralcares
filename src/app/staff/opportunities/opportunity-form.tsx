@@ -2,14 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createOpportunityWithSlots } from "./actions";
+import { createOpportunityWithSlots, type AudienceConfig } from "./actions";
 import { useSchedulingFields } from "./use-scheduling-fields";
 
-export function OpportunityForm() {
+const GRADES = ["K", "1", "2", "3", "4", "5"];
+
+export function OpportunityForm({
+  teachers,
+}: {
+  teachers: { id: number; name: string; grade: string }[];
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [requiredClearance, setRequiredClearance] = useState(1);
+  const [audienceType, setAudienceType] = useState<"SCHOOL" | "GRADE" | "CLASSROOM">("SCHOOL");
+  const [audienceGrade, setAudienceGrade] = useState("");
+  const [audienceTeacherId, setAudienceTeacherId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -18,17 +27,31 @@ export function OpportunityForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    let audience: AudienceConfig;
+    if (audienceType === "GRADE") {
+      audience = { audience: "GRADE", audienceGrade };
+    } else if (audienceType === "CLASSROOM") {
+      audience = { audience: "CLASSROOM", audienceTeacherId: Number(audienceTeacherId) };
+    } else {
+      audience = { audience: "SCHOOL" };
+    }
+
     setPending(true);
     try {
       await createOpportunityWithSlots({
         name,
         description,
         requiredClearance,
+        audience,
         scheduling: getConfig(),
       });
       setName("");
       setDescription("");
       setRequiredClearance(1);
+      setAudienceType("SCHOOL");
+      setAudienceGrade("");
+      setAudienceTeacherId("");
       reset();
       router.refresh();
     } catch (err) {
@@ -69,6 +92,72 @@ export function OpportunityForm() {
           className="border border-gray-300 rounded-md px-3 py-2 w-32"
         />
       </label>
+
+      <fieldset className="border border-gray-300 rounded-md p-4 flex flex-col gap-3">
+        <legend className="text-sm font-medium px-1">Audience</legend>
+        <div className="flex gap-4 text-sm">
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              checked={audienceType === "SCHOOL"}
+              onChange={() => setAudienceType("SCHOOL")}
+            />
+            Entire school
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              checked={audienceType === "GRADE"}
+              onChange={() => setAudienceType("GRADE")}
+            />
+            Specific grade
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              checked={audienceType === "CLASSROOM"}
+              onChange={() => setAudienceType("CLASSROOM")}
+            />
+            Specific classroom
+          </label>
+        </div>
+
+        {audienceType === "GRADE" && (
+          <select
+            value={audienceGrade}
+            onChange={(e) => setAudienceGrade(e.target.value)}
+            required
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-40"
+          >
+            <option value="" disabled>
+              Select a grade
+            </option>
+            {GRADES.map((g) => (
+              <option key={g} value={g}>
+                {g === "K" ? "Kindergarten" : `Grade ${g}`}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {audienceType === "CLASSROOM" && (
+          <select
+            value={audienceTeacherId}
+            onChange={(e) => setAudienceTeacherId(e.target.value)}
+            required
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-56"
+          >
+            <option value="" disabled>
+              Select a teacher
+            </option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} ({t.grade === "K" ? "Kindergarten" : `Grade ${t.grade}`})
+              </option>
+            ))}
+          </select>
+        )}
+      </fieldset>
 
       {fields}
 

@@ -48,7 +48,7 @@ export const authOptions: AuthOptions = {
         const volunteer = await prisma.volunteer.findUnique({
           where: { email: credentials.email },
         });
-        if (!volunteer) return null;
+        if (!volunteer || !volunteer.passwordHash) return null;
 
         const valid = await bcrypt.compare(credentials.password, volunteer.passwordHash);
         if (!valid) return null;

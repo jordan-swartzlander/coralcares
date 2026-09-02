@@ -13,7 +13,7 @@ export default function Home() {
           href="/register"
           className="bg-black text-white rounded-md px-4 py-2"
         >
-          Apply to volunteer
+          How to become a volunteer
         </Link>
         <Link
           href="/volunteer/login"

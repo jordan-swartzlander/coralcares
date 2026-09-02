@@ -113,10 +113,16 @@ function buildSlotRows(opportunityId: number, config: SchedulingConfig) {
   return rows;
 }
 
+export type AudienceConfig =
+  | { audience: "SCHOOL" }
+  | { audience: "GRADE"; audienceGrade: string }
+  | { audience: "CLASSROOM"; audienceTeacherId: number };
+
 export async function createOpportunityWithSlots(input: {
   name: string;
   description: string;
   requiredClearance: number;
+  audience: AudienceConfig;
   scheduling: SchedulingConfig;
 }) {
   await requireActiveStaff();
@@ -124,11 +130,22 @@ export async function createOpportunityWithSlots(input: {
   const name = input.name.trim();
   if (!name) throw new Error("Name is required.");
 
+  if (input.audience.audience === "GRADE" && !input.audience.audienceGrade) {
+    throw new Error("Select a grade for a grade-specific opportunity.");
+  }
+  if (input.audience.audience === "CLASSROOM" && !input.audience.audienceTeacherId) {
+    throw new Error("Select a teacher for a classroom-specific opportunity.");
+  }
+
   const opportunity = await prisma.opportunity.create({
     data: {
       name,
       description: input.description.trim() || null,
       requiredClearance: input.requiredClearance,
+      audience: input.audience.audience,
+      audienceGrade: input.audience.audience === "GRADE" ? input.audience.audienceGrade : null,
+      audienceTeacherId:
+        input.audience.audience === "CLASSROOM" ? input.audience.audienceTeacherId : null,
     },
   });
 

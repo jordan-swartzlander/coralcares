@@ -73,9 +73,9 @@ export default function VolunteerLoginPage() {
         </button>
 
         <p className="text-sm text-gray-600">
-          Not registered yet?{" "}
+          Don&apos;t have an account yet?{" "}
           <Link href="/register" className="underline">
-            Apply to volunteer
+            How to become a volunteer
           </Link>
         </p>
       </form>

@@ -12,6 +12,7 @@ datasource db {
 
 enum VolunteerStatus {
   PENDING
+  INVITED
   APPROVED
   DENIED
 
@@ -48,7 +49,9 @@ model Volunteer {
   email            String           @unique
   phone            String?
   studentName      String?          @map("student_name")
-  passwordHash     String           @map("password_hash")
+  studentGrade     String?          @map("student_grade")
+  studentTeacherId Int?             @map("student_teacher_id")
+  passwordHash     String?          @map("password_hash")
   status           VolunteerStatus  @default(PENDING)
   totalHours       Float            @default(0) @map("total_hours")
   createdAt        DateTime         @default(now()) @map("created_at")
@@ -56,11 +59,30 @@ model Volunteer {
   approvedAt       DateTime?        @map("approved_at")
 
   approvedBy       Staff?               @relation(fields: [approvedByStaffId], references: [id])
+  studentTeacher   Teacher?             @relation(fields: [studentTeacherId], references: [id])
   commitments      Commitment[]
   strikes          Strike[]
   clearances       VolunteerClearance[]
+  invites          VolunteerInvite[]
 
   @@map("volunteers")
+}
+
+// Managed by Owner/Administrator so classroom-specific opportunities and
+// student records can reference a live, editable roster instead of free
+// text — a teacher's assigned grade can change, or they can leave, without
+// breaking historical references (deactivate rather than delete).
+model Teacher {
+  id        Int      @id @default(autoincrement())
+  name      String
+  grade     String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  students     Volunteer[]
+  opportunities Opportunity[]
+
+  @@map("teachers")
 }
 
 model Staff {
@@ -75,6 +97,7 @@ model Staff {
   approvedVolunteers  Volunteer[]
   approvedClearances  VolunteerClearance[]
   sentInvites         StaffInvite[]
+  sentVolunteerInvites VolunteerInvite[]
 
   @@map("staff")
 }
@@ -96,6 +119,27 @@ model StaffInvite {
   invitedBy Staff @relation(fields: [invitedByStaffId], references: [id])
 
   @@map("staff_invites")
+}
+
+// Created by an Owner/Administrator once a volunteer has been vetted
+// (background check done externally). Unlike StaffInvite, the Volunteer row
+// already exists from the public interest form, so this just ties a one-time
+// signup token to that existing row. Completing it sets a password and moves
+// status straight to APPROVED — no separate post-signup approval step, since
+// vetting already happened before the invite was sent.
+model VolunteerInvite {
+  id               Int       @id @default(autoincrement())
+  volunteerId      Int       @map("volunteer_id")
+  token            String    @unique
+  invitedByStaffId Int       @map("invited_by_staff_id")
+  expiresAt        DateTime  @map("expires_at")
+  usedAt           DateTime? @map("used_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id])
+  invitedBy Staff     @relation(fields: [invitedByStaffId], references: [id])
+
+  @@map("volunteer_invites")
 }
 
 // One row per volunteer per school year. Absence of a row for the current
@@ -127,14 +171,26 @@ model AppSettings {
   @@map("app_settings")
 }
 
+enum OpportunityAudience {
+  SCHOOL
+  GRADE
+  CLASSROOM
+
+  @@map("opportunity_audience")
+}
+
 model Opportunity {
-  id                Int      @id @default(autoincrement())
+  id                Int                 @id @default(autoincrement())
   name              String
   description       String?
-  requiredClearance Int      @default(0) @map("required_clearance")
-  active            Boolean  @default(true)
+  requiredClearance Int                 @default(0) @map("required_clearance")
+  active            Boolean             @default(true)
+  audience          OpportunityAudience @default(SCHOOL)
+  audienceGrade     String?             @map("audience_grade")
+  audienceTeacherId Int?                @map("audience_teacher_id")
 
-  slots             Slot[]
+  audienceTeacher Teacher? @relation(fields: [audienceTeacherId], references: [id])
+  slots           Slot[]
 
   @@map("opportunities")
 }

@@ -4,9 +4,15 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSchoolYear } from "@/lib/school-year";
-import { approveVolunteer, denyVolunteer, startNewSchoolYear } from "./actions";
+import { startNewSchoolYear } from "./actions";
 import { SignOutButton } from "./sign-out-button";
 import { BackgroundCheckToggle } from "./background-check-toggle";
+
+const DASHBOARD_TITLES = {
+  OWNER: "Owner Dashboard",
+  ADMINISTRATOR: "Admin Dashboard",
+  STAFF: "Staff Dashboard",
+} as const;
 
 export default async function StaffPage() {
   const session = await getServerSession(authOptions);
@@ -16,12 +22,13 @@ export default async function StaffPage() {
 
   const canManage =
     session.user.staffRole === "OWNER" || session.user.staffRole === "ADMINISTRATOR";
+  const dashboardTitle = DASHBOARD_TITLES[session.user.staffRole ?? "STAFF"];
 
   if (session.user.staffStatus !== "ACTIVE") {
     return (
       <main className="mx-auto max-w-md w-full px-6 py-16">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-semibold">Staff Dashboard</h1>
+          <h1 className="text-2xl font-semibold">{dashboardTitle}</h1>
           <SignOutButton />
         </div>
         {session.user.staffStatus === "PENDING_APPROVAL" ? (
@@ -43,7 +50,7 @@ export default async function StaffPage() {
       <main className="mx-auto max-w-md w-full px-6 py-16">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold">Staff Dashboard</h1>
+            <h1 className="text-2xl font-semibold">{dashboardTitle}</h1>
             <p className="text-sm text-gray-600">Signed in as {session.user.email}</p>
           </div>
           <SignOutButton />
@@ -57,23 +64,17 @@ export default async function StaffPage() {
 
   const schoolYear = await getCurrentSchoolYear();
 
-  const [pendingVolunteers, approvedVolunteers] = await Promise.all([
-    prisma.volunteer.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.volunteer.findMany({
-      where: { status: "APPROVED" },
-      orderBy: { name: "asc" },
-      include: { clearances: { where: { schoolYear } } },
-    }),
-  ]);
+  const activeVolunteers = await prisma.volunteer.findMany({
+    where: { status: { in: ["INVITED", "APPROVED"] } },
+    orderBy: { name: "asc" },
+    include: { clearances: { where: { schoolYear } } },
+  });
 
   return (
     <main className="mx-auto max-w-3xl w-full px-6 py-16">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold">Staff Dashboard</h1>
+          <h1 className="text-2xl font-semibold">{dashboardTitle}</h1>
           <p className="text-sm text-gray-600">Signed in as {session.user.email}</p>
           <div className="flex gap-4">
             <Link href="/staff/opportunities" className="text-sm underline">
@@ -81,6 +82,12 @@ export default async function StaffPage() {
             </Link>
             <Link href="/staff/accounts" className="text-sm underline">
               Manage Staff
+            </Link>
+            <Link href="/staff/volunteers/new" className="text-sm underline">
+              New Volunteer
+            </Link>
+            <Link href="/staff/teachers" className="text-sm underline">
+              Manage Teachers
             </Link>
           </div>
         </div>
@@ -114,65 +121,10 @@ export default async function StaffPage() {
         </form>
       </section>
 
-      <section className="mb-12">
-        <h2 className="text-lg font-semibold mb-4">Pending Registrations</h2>
-        {pendingVolunteers.length === 0 ? (
-          <p className="text-sm text-gray-600">No pending applications right now.</p>
-        ) : (
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="text-left border-b border-gray-300">
-                <th className="py-2 pr-4">Name</th>
-                <th className="py-2 pr-4">Email</th>
-                <th className="py-2 pr-4">Phone</th>
-                <th className="py-2 pr-4">Student</th>
-                <th className="py-2 pr-4">Applied</th>
-                <th className="py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingVolunteers.map((volunteer) => (
-                <tr key={volunteer.id} className="border-b border-gray-100">
-                  <td className="py-3 pr-4">{volunteer.name}</td>
-                  <td className="py-3 pr-4">{volunteer.email}</td>
-                  <td className="py-3 pr-4">{volunteer.phone ?? "—"}</td>
-                  <td className="py-3 pr-4">{volunteer.studentName ?? "—"}</td>
-                  <td className="py-3 pr-4">
-                    {volunteer.createdAt.toLocaleDateString()}
-                  </td>
-                  <td className="py-3">
-                    <div className="flex gap-2">
-                      <form action={approveVolunteer.bind(null, volunteer.id)}>
-                        <button
-                          type="submit"
-                          className="bg-emerald-600 text-white rounded-md px-3 py-1"
-                        >
-                          Approve
-                        </button>
-                      </form>
-                      <form action={denyVolunteer.bind(null, volunteer.id)}>
-                        <button
-                          type="submit"
-                          className="bg-red-600 text-white rounded-md px-3 py-1"
-                        >
-                          Deny
-                        </button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
       <section>
-        <h2 className="text-lg font-semibold mb-4">
-          Approved Volunteers ({schoolYear})
-        </h2>
-        {approvedVolunteers.length === 0 ? (
-          <p className="text-sm text-gray-600">No approved volunteers yet.</p>
+        <h2 className="text-lg font-semibold mb-4">Volunteers ({schoolYear})</h2>
+        {activeVolunteers.length === 0 ? (
+          <p className="text-sm text-gray-600">No invited or approved volunteers yet.</p>
         ) : (
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -180,15 +132,28 @@ export default async function StaffPage() {
                 <th className="py-2 pr-4">Name</th>
                 <th className="py-2 pr-4">Email</th>
                 <th className="py-2 pr-4">Student</th>
+                <th className="py-2 pr-4">Status</th>
                 <th className="py-2">Clearance</th>
               </tr>
             </thead>
             <tbody>
-              {approvedVolunteers.map((volunteer) => (
+              {activeVolunteers.map((volunteer) => (
                 <tr key={volunteer.id} className="border-b border-gray-100">
                   <td className="py-3 pr-4">{volunteer.name}</td>
                   <td className="py-3 pr-4">{volunteer.email}</td>
                   <td className="py-3 pr-4">{volunteer.studentName ?? "—"}</td>
+                  <td className="py-3 pr-4">
+                    {volunteer.status === "INVITED" ? (
+                      <Link
+                        href={`/staff/volunteers/${volunteer.id}`}
+                        className="underline"
+                      >
+                        Invited
+                      </Link>
+                    ) : (
+                      "Approved"
+                    )}
+                  </td>
                   <td className="py-3">
                     <BackgroundCheckToggle
                       key={`${volunteer.id}-${schoolYear}`}

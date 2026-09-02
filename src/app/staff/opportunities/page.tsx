@@ -15,15 +15,35 @@ export default async function StaffOpportunitiesPage() {
     redirect("/staff/login");
   }
 
-  const opportunities = await prisma.opportunity.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      slots: {
-        orderBy: { date: "asc" },
-        include: { commitments: { where: { status: "CONFIRMED" } } },
+  const [opportunities, teachers] = await Promise.all([
+    prisma.opportunity.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        slots: {
+          orderBy: { date: "asc" },
+          include: { commitments: { where: { status: "CONFIRMED" } } },
+        },
+        audienceTeacher: true,
       },
-    },
-  });
+    }),
+    prisma.teacher.findMany({
+      where: { active: true },
+      orderBy: [{ grade: "asc" }, { name: "asc" }],
+    }),
+  ]);
+
+  function audienceLabel(opportunity: (typeof opportunities)[number]) {
+    if (opportunity.audience === "GRADE") {
+      const g = opportunity.audienceGrade;
+      return `Grade ${g === "K" ? "Kindergarten" : g}`;
+    }
+    if (opportunity.audience === "CLASSROOM") {
+      return opportunity.audienceTeacher
+        ? `${opportunity.audienceTeacher.name}'s classroom`
+        : "Classroom (teacher removed)";
+    }
+    return "Entire school";
+  }
 
   return (
     <main className="mx-auto max-w-3xl w-full px-6 py-16">
@@ -36,7 +56,7 @@ export default async function StaffOpportunitiesPage() {
 
       <section className="mb-12">
         <h2 className="text-lg font-semibold mb-4">New Opportunity</h2>
-        <OpportunityForm />
+        <OpportunityForm teachers={teachers} />
       </section>
 
       <section className="flex flex-col gap-10">
@@ -50,6 +70,7 @@ export default async function StaffOpportunitiesPage() {
                     (requires level {opportunity.requiredClearance})
                   </span>
                 </h3>
+                <p className="text-xs text-gray-500">{audienceLabel(opportunity)}</p>
                 {opportunity.description && (
                   <p className="text-sm text-gray-600">{opportunity.description}</p>
                 )}

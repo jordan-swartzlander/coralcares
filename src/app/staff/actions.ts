@@ -5,24 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSchoolYear } from "@/lib/school-year";
 import { revalidatePath } from "next/cache";
 
-export async function approveVolunteer(volunteerId: number) {
-  const { id: staffId } = await requireStaffRole(["OWNER", "ADMINISTRATOR"]);
-  await prisma.volunteer.update({
-    where: { id: volunteerId },
-    data: { status: "APPROVED", approvedByStaffId: staffId, approvedAt: new Date() },
-  });
-  revalidatePath("/staff");
-}
-
-export async function denyVolunteer(volunteerId: number) {
-  const { id: staffId } = await requireStaffRole(["OWNER", "ADMINISTRATOR"]);
-  await prisma.volunteer.update({
-    where: { id: volunteerId },
-    data: { status: "DENIED", approvedByStaffId: staffId, approvedAt: new Date() },
-  });
-  revalidatePath("/staff");
-}
-
 export async function setBackgroundCheckApproved(volunteerId: number, approved: boolean) {
   const { id: staffId } = await requireStaffRole(["OWNER", "ADMINISTRATOR"]);
   const schoolYear = await getCurrentSchoolYear();

@@ -30,6 +30,17 @@ export async function signUpForSlot(slotId: number) {
     return;
   }
 
+  const { opportunity } = slot;
+  const audienceMatches =
+    opportunity.audience === "SCHOOL" ||
+    (opportunity.audience === "GRADE" && opportunity.audienceGrade === volunteer.studentGrade) ||
+    (opportunity.audience === "CLASSROOM" &&
+      opportunity.audienceTeacherId === volunteer.studentTeacherId);
+  if (!audienceMatches) {
+    revalidatePath("/volunteer");
+    return;
+  }
+
   if (slot.commitments.length >= slot.capacity) {
     revalidatePath("/volunteer");
     return;
@@ -39,6 +50,19 @@ export async function signUpForSlot(slotId: number) {
     where: { volunteerId_slotId: { volunteerId, slotId } },
     update: { status: "CONFIRMED" },
     create: { volunteerId, slotId, status: "CONFIRMED" },
+  });
+
+  revalidatePath("/volunteer");
+}
+
+export async function updateStudentTeacher(formData: FormData) {
+  const volunteerId = await requireVolunteerId();
+  const studentTeacherIdRaw = formData.get("studentTeacherId") as string | null;
+  const studentTeacherId = studentTeacherIdRaw ? Number(studentTeacherIdRaw) : null;
+
+  await prisma.volunteer.update({
+    where: { id: volunteerId },
+    data: { studentTeacherId },
   });
 
   revalidatePath("/volunteer");

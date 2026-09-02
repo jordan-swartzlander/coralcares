@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSchoolYear, getClearanceLevel } from "@/lib/school-year";
-import { signUpForSlot, cancelCommitment } from "./actions";
+import { signUpForSlot, cancelCommitment, updateStudentTeacher } from "./actions";
 import { SignOutButton } from "./sign-out-button";
 import { formatSlotDate, formatSlotTime } from "@/lib/format";
 
@@ -20,6 +20,11 @@ export default async function VolunteerPage() {
     redirect("/volunteer/login");
   }
 
+  const teachers = await prisma.teacher.findMany({
+    where: { active: true },
+    orderBy: [{ grade: "asc" }, { name: "asc" }],
+  });
+
   return (
     <main className="mx-auto max-w-3xl w-full px-6 py-16">
       <div className="flex items-center justify-between mb-8">
@@ -29,6 +34,38 @@ export default async function VolunteerPage() {
         </div>
         <SignOutButton />
       </div>
+
+      {volunteer.studentName && (
+        <section className="mb-8 border-b border-gray-200 pb-6">
+          <p className="text-sm text-gray-600 mb-2">
+            Student: <span className="font-medium">{volunteer.studentName}</span>
+            {volunteer.studentGrade && ` — Grade ${volunteer.studentGrade}`}
+          </p>
+          <form action={updateStudentTeacher} className="flex items-end gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium">Teacher</span>
+              <select
+                name="studentTeacherId"
+                defaultValue={volunteer.studentTeacherId ?? ""}
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+              >
+                <option value="">No teacher selected</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.grade === "K" ? "Kindergarten" : `Grade ${t.grade}`})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+            >
+              Save
+            </button>
+          </form>
+        </section>
+      )}
 
       {volunteer.status === "PENDING" && (
         <p className="text-sm text-gray-600">
@@ -45,49 +82,107 @@ export default async function VolunteerPage() {
       )}
 
       {volunteer.status === "APPROVED" && (
-        <ApprovedVolunteerView volunteerId={volunteer.id} />
+        <ApprovedVolunteerGate
+          volunteerId={volunteer.id}
+          studentGrade={volunteer.studentGrade}
+          studentTeacherId={volunteer.studentTeacherId}
+        />
       )}
     </main>
   );
 }
 
-async function ApprovedVolunteerView({ volunteerId }: { volunteerId: number }) {
+async function ApprovedVolunteerGate({
+  volunteerId,
+  studentGrade,
+  studentTeacherId,
+}: {
+  volunteerId: number;
+  studentGrade: string | null;
+  studentTeacherId: number | null;
+}) {
   const schoolYear = await getCurrentSchoolYear();
   const clearanceLevel = await getClearanceLevel(volunteerId, schoolYear);
 
-  const opportunities = await prisma.opportunity.findMany({
-    where: { active: true },
-    orderBy: { name: "asc" },
-    include: {
-      slots: {
-        orderBy: { date: "asc" },
-        include: { commitments: { where: { status: "CONFIRMED" } } },
-      },
-    },
-  });
-
-  const mySignups: {
-    commitmentId: number;
-    opportunityName: string;
-    date: Date;
-    startTime: Date;
-    endTime: Date;
-  }[] = [];
-
-  for (const opportunity of opportunities) {
-    for (const slot of opportunity.slots) {
-      const mine = slot.commitments.find((c) => c.volunteerId === volunteerId);
-      if (mine) {
-        mySignups.push({
-          commitmentId: mine.id,
-          opportunityName: opportunity.name,
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        });
-      }
-    }
+  if (clearanceLevel < 1) {
+    return (
+      <p className="text-sm text-gray-600">
+        Your background check has expired for the {schoolYear} school year.
+        Please submit new background check paperwork with the school office to
+        continue volunteering.
+      </p>
+    );
   }
+
+  return (
+    <ApprovedVolunteerView
+      volunteerId={volunteerId}
+      clearanceLevel={clearanceLevel}
+      studentGrade={studentGrade}
+      studentTeacherId={studentTeacherId}
+    />
+  );
+}
+
+async function ApprovedVolunteerView({
+  volunteerId,
+  clearanceLevel,
+  studentGrade,
+  studentTeacherId,
+}: {
+  volunteerId: number;
+  clearanceLevel: number;
+  studentGrade: string | null;
+  studentTeacherId: number | null;
+}) {
+  const [opportunities, mySignupCommitments] = await Promise.all([
+    prisma.opportunity.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      include: {
+        slots: {
+          orderBy: { date: "asc" },
+          include: { commitments: { where: { status: "CONFIRMED" } } },
+        },
+        audienceTeacher: true,
+      },
+    }),
+    prisma.commitment.findMany({
+      where: { volunteerId, status: "CONFIRMED" },
+      include: { slot: { include: { opportunity: true } } },
+      orderBy: { slot: { date: "asc" } },
+    }),
+  ]);
+
+  function isVisible(opportunity: (typeof opportunities)[number]) {
+    if (opportunity.audience === "SCHOOL") return true;
+    if (opportunity.audience === "GRADE") return opportunity.audienceGrade === studentGrade;
+    if (opportunity.audience === "CLASSROOM") {
+      return opportunity.audienceTeacherId === studentTeacherId;
+    }
+    return false;
+  }
+
+  function audienceLabel(opportunity: (typeof opportunities)[number]) {
+    if (opportunity.audience === "GRADE") {
+      const g = opportunity.audienceGrade;
+      return `Grade ${g === "K" ? "Kindergarten" : g} only`;
+    }
+    if (opportunity.audience === "CLASSROOM") {
+      return opportunity.audienceTeacher
+        ? `${opportunity.audienceTeacher.name}'s classroom only`
+        : "Specific classroom only";
+    }
+    return null;
+  }
+
+  const mySignups = mySignupCommitments.map((c) => ({
+    commitmentId: c.id,
+    opportunityName: c.slot.opportunity.name,
+    date: c.slot.date,
+    startTime: c.slot.startTime,
+    endTime: c.slot.endTime,
+  }));
 
   return (
     <>
@@ -142,9 +237,22 @@ async function ApprovedVolunteerView({ volunteerId }: { volunteerId: number }) {
           <div className="flex flex-col gap-8">
             {opportunities.map((opportunity) => {
               const eligible = clearanceLevel >= opportunity.requiredClearance;
+
+              if (!isVisible(opportunity)) {
+                return (
+                  <div key={opportunity.id}>
+                    <h3 className="font-medium text-gray-500">{opportunity.name}</h3>
+                    <p className="text-sm text-gray-500">{audienceLabel(opportunity)}</p>
+                  </div>
+                );
+              }
+
               return (
                 <div key={opportunity.id}>
                   <h3 className="font-medium">{opportunity.name}</h3>
+                  {audienceLabel(opportunity) && (
+                    <p className="text-xs text-gray-500 mb-1">{audienceLabel(opportunity)}</p>
+                  )}
                   {opportunity.description && (
                     <p className="text-sm text-gray-600 mb-2">
                       {opportunity.description}
