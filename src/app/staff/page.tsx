@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSchoolYear } from "@/lib/school-year";
 import { SignOutButton } from "./sign-out-button";
 import { BackgroundCheckToggle } from "./background-check-toggle";
+import { SchoolSettingsDropdown } from "./school-settings-dropdown";
 
 const DASHBOARD_TITLES = {
   OWNER: "Owner Dashboard",
@@ -81,14 +82,12 @@ export default async function StaffPage() {
           <h1 className="text-2xl font-semibold">{dashboardTitle}</h1>
           <p className="text-sm text-gray-600">Signed in as {session.user.email}</p>
           <div className="flex gap-4">
+            <SchoolSettingsDropdown schoolYear={schoolYear} />
             <Link href="/staff/opportunities" className="text-sm underline">
               Manage Opportunities
             </Link>
             <Link href="/staff/volunteers/new" className="text-sm underline">
               New Volunteer
-            </Link>
-            <Link href="/staff/settings" className="text-sm underline">
-              School Settings
             </Link>
             <Link href="/staff/change-password" className="text-sm underline">
               Change Password
